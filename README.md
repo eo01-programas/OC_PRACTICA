@@ -1,2 +1,0 @@
-# OC_PRACTICA
-Practica_WEB
