@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Demo estática para practicar la creación y el cierre de órdenes de cambio.">
+  <meta name="theme-color" content="#123b64">
+  <title>Orden de Cambio — Demo de Práctica</title>
+  <link rel="stylesheet" href="css/app.css?v=2">
+</head>
+<body>
+  <div id="app">
+    <section id="loginView" class="login-view">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="login-brand-lockup" aria-label="Marca de la aplicación">
+            <div class="brand-mark" aria-hidden="true">🧵</div>
+            <div class="login-brand-name">COFACO</div>
+          </div>
+          <div class="login-heading">
+            <h1>Orden de Cambio</h1>
+            <p class="login-eyebrow">HILANDERÍA · ENTORNO DE PRÁCTICA</p>
+            <p class="login-company">Los datos de esta sesión no se guardan</p>
+          </div>
+        </div>
+
+        <form id="loginForm" class="login-form" autocomplete="off">
+          <label class="field">
+            <span>Supervisor</span>
+            <select id="loginSupervisor" required>
+              <option value="">Seleccione...</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Turno</span>
+            <select id="loginShift" required>
+              <option value="Mañana">Mañana</option>
+              <option value="Tarde">Tarde</option>
+              <option value="Noche">Noche</option>
+            </select>
+          </label>
+          <div class="demo-notice" role="note">
+            <strong>Modo demostración</strong>
+            <span>Esta aplicación no transmite ni almacena información. Al actualizar, todo vuelve al inicio.</span>
+          </div>
+          <button class="btn btn-primary btn-lg login-btn" type="submit">Ingresar como Supervisor</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="mainView" class="app-shell hidden">
+      <header class="topbar">
+        <div class="topbar-title">
+          <span class="demo-pill">DEMO</span>
+          <div>
+            <strong>ORDEN DE CAMBIO — DEMO DE PRÁCTICA</strong>
+            <small id="sessionMeta"></small>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="notificationBtn" class="icon-btn" type="button" aria-label="Ver notificaciones">
+            <span aria-hidden="true">▤</span>
+            <span id="notificationBadge" class="notification-badge hidden">0</span>
+          </button>
+          <button id="resetBtn" class="btn btn-ghost" type="button">Reiniciar práctica</button>
+          <button id="logoutBtn" class="btn btn-ghost" type="button">Salir</button>
+        </div>
+      </header>
+
+      <div class="persistent-warning">
+        DEMO SIN ALMACENAMIENTO · Datos ficticios · Actualizar reinicia la práctica
+      </div>
+
+      <nav class="global-tabs" aria-label="Secciones principales">
+        <button class="global-tab active" type="button" data-section="orders">Creación de orden</button>
+        <button class="global-tab" type="button" data-section="stops">
+          Control de Paros <span id="stopsCount" class="tab-count">0</span>
+        </button>
+      </nav>
+
+      <main class="main-content">
+        <section id="ordersSection" class="app-section active">
+          <div id="ordersListView">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">SUPERVISOR</p>
+                <h2>Órdenes de esta práctica</h2>
+                <p class="muted">La orden cerrada inicial siempre reaparece al reiniciar.</p>
+              </div>
+              <button id="newOrderBtn" class="btn btn-primary" type="button">+ Nueva orden</button>
+            </div>
+
+            <div class="summary-grid" id="orderSummary"></div>
+
+            <section class="card table-card">
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Acción</th>
+                      <th>Orden</th>
+                      <th>Fecha</th>
+                      <th>Máquina</th>
+                      <th>Artículo / Lote</th>
+                      <th>Estado</th>
+                      <th>Supervisor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ordersBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="orderEditorView" class="hidden">
+            <div class="page-head editor-head">
+              <div class="page-head-main">
+                <button id="backToOrdersBtn" class="back-btn" type="button" aria-label="Volver a las órdenes">←</button>
+                <div>
+                  <p class="eyebrow">LLENADO DE ORDEN DE CAMBIO</p>
+                  <h2 id="editorTitle">Nueva orden</h2>
+                </div>
+              </div>
+              <span id="orderBadge" class="status-badge status-neutral">Borrador nuevo</span>
+            </div>
+
+            <section class="flow-card" aria-label="Flujo de la orden">
+              <div class="flow-card-head">
+                <strong>Flujo visual</strong>
+                <span class="muted">Informativo</span>
+              </div>
+              <div id="flowSteps" class="flow-steps"></div>
+            </section>
+
+            <div id="closedOrderNotice" class="alert alert-info hidden"></div>
+
+            <form id="orderForm" autocomplete="off" novalidate>
+              <section class="card form-card">
+                <div class="section-title"><span>1</span> Datos generales de la regulación</div>
+                <div class="form-grid form-grid-3">
+                  <label class="field">
+                    <span>Fecha *</span>
+                    <input id="orderDate" type="date" required>
+                  </label>
+                  <label class="field">
+                    <span>Turno *</span>
+                    <select id="orderShift" required>
+                      <option value="Mañana">Mañana</option>
+                      <option value="Tarde">Tarde</option>
+                      <option value="Noche">Noche</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Jefe de turno / Supervisor *</span>
+                    <select id="supervisorName" required></select>
+                  </label>
+                  <label class="field">
+                    <span>Máquina *</span>
+                    <select id="machineSelect" required></select>
+                  </label>
+                  <label class="field">
+                    <span>Proceso</span>
+                    <input id="machineProcess" type="text" readonly>
+                  </label>
+                  <label class="field">
+                    <span>N°-Maq</span>
+                    <input id="machineNumber" type="text" readonly>
+                  </label>
+                  <label class="field">
+                    <span>De Ne (Antiguo) *</span>
+                    <input id="fromNe" type="text" list="titleOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>Artículo (Nuevo) *</span>
+                    <input id="article" type="text" list="articleOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>Lote (Nuevo) *</span>
+                    <input id="lot" type="text" list="lotOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>Material *</span>
+                    <input id="material" type="text" list="materialOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>Composición *</span>
+                    <input id="composition" type="text" list="compositionOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>A Ne (Nuevo) *</span>
+                    <input id="toNe" type="text" list="titleOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>Parafina</span>
+                    <input id="paraffin" type="text" list="paraffinOptions" placeholder="Seleccione o escriba">
+                  </label>
+                  <label class="field field-span-2">
+                    <span>Observación</span>
+                    <textarea id="observations" rows="3" placeholder="Detalles adicionales del cambio..."></textarea>
+                  </label>
+                </div>
+              </section>
+
+              <section class="card form-card">
+                <div class="section-title"><span>2</span> Horas de control de cambio</div>
+                <div class="form-grid form-grid-4">
+                  <label class="field">
+                    <span>Empezó el cambio *</span>
+                    <input id="startTime" type="time" required>
+                  </label>
+                  <label class="field">
+                    <span>Terminó el cambio</span>
+                    <input id="endTime" type="time">
+                  </label>
+                  <label class="field">
+                    <span>Mecánico asignado *</span>
+                    <input id="mechanic" type="text" list="mechanicOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>Revisión / Estado visual</span>
+                    <input id="visualStatus" type="text" readonly value="Borrador">
+                  </label>
+                </div>
+              </section>
+
+              <section class="card form-card">
+                <div class="section-title"><span>3</span> Control de producción y parámetros en planta</div>
+                <div class="form-grid form-grid-3">
+                  <label class="field">
+                    <span>Control de producción *</span>
+                    <input id="productionControl" type="text" list="productionOptions" placeholder="Seleccione o escriba" required>
+                  </label>
+                  <label class="field">
+                    <span>RPM - Ficha Técnica *</span>
+                    <input id="rpm" type="number" min="1" step="1" placeholder="RPM declarada" required>
+                  </label>
+                  <label class="field">
+                    <span>Asistente D.T.</span>
+                    <input id="assistant" type="text" value="Dependencia simulada" readonly>
+                  </label>
+                </div>
+                <div class="info-strip">
+                  La DEMO resuelve la intervención mecánica automáticamente al guardar, firmar y enviar.
+                </div>
+              </section>
+
+              <section class="card form-card dependency-card">
+                <div class="section-title"><span>4</span> Dependencias posteriores</div>
+                <div class="dependency-grid">
+                  <div><span class="dependency-icon">✓</span><strong>Firma mecánica</strong><small>Simulada al enviar</small></div>
+                  <div><span class="dependency-icon pending">…</span><strong>Validación RPM</strong><small>No disponible en esta DEMO</small></div>
+                  <div><span class="dependency-icon pending">…</span><strong>Cierre normal</strong><small>Requiere validación externa</small></div>
+                </div>
+              </section>
+
+              <section class="card form-card">
+                <div class="section-title"><span>5</span> Firma y cierre del Supervisor</div>
+                <div id="signaturePanel" class="signature-panel"></div>
+                <div class="action-row">
+                  <button id="saveSignBtn" class="btn btn-primary" type="button">Guardar/Firmar/Enviar</button>
+                  <button id="normalCloseBtn" class="btn btn-success" type="button">Cerrar orden</button>
+                  <button id="forceCloseBtn" class="btn btn-warning" type="button">Forzar cierre</button>
+                </div>
+              </section>
+            </form>
+          </div>
+        </section>
+
+        <section id="stopsSection" class="app-section">
+          <div id="stopsListView">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">SUPERVISOR</p>
+                <h2>Control de Paros</h2>
+                <p class="muted">Práctica disponible hasta marcar la limpieza como terminada.</p>
+              </div>
+            </div>
+            <section class="card table-card">
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Acción</th>
+                      <th>Orden</th>
+                      <th>Máquina</th>
+                      <th>Artículo / Lote</th>
+                      <th>Estado</th>
+                      <th>Inicio</th>
+                      <th>Duración</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stopsBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="stopDetailView" class="hidden">
+            <div class="page-head editor-head">
+              <div class="page-head-main">
+                <button id="backToStopsBtn" class="back-btn" type="button" aria-label="Volver a Control de Paros">←</button>
+                <div>
+                  <p class="eyebrow">CONTROL DE PAROS</p>
+                  <h2 id="stopTitle">Detalle del paro</h2>
+                </div>
+              </div>
+              <span id="stopBadge" class="status-badge status-blue"></span>
+            </div>
+
+            <section id="stopHero" class="card stop-hero"></section>
+            <section id="stopActionCard" class="card stop-action-card"></section>
+
+            <section class="card table-card">
+              <div class="section-title"><span>◷</span> Línea de tiempo</div>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Etapa</th>
+                      <th>Inicio</th>
+                      <th>Término</th>
+                      <th>Responsable</th>
+                      <th>Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stopTimeline"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <div id="toastRegion" class="toast-region" aria-live="polite" aria-label="Notificaciones"></div>
+
+    <div id="forceCloseModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="forceCloseTitle">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="forceCloseTitle">Forzar cierre de orden</h3>
+          <button class="modal-x" type="button" data-close-modal="forceCloseModal" aria-label="Cerrar">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="forceCloseMissing" class="alert alert-danger"></div>
+          <label class="field">
+            <span>Aclaración obligatoria</span>
+            <textarea id="forceCloseNote" rows="4" placeholder="Explique por qué se cerrará la orden incompleta..."></textarea>
+          </label>
+          <p id="forceCloseError" class="field-error hidden">La aclaración es obligatoria.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close-modal="forceCloseModal">Cancelar</button>
+          <button id="confirmForceCloseBtn" class="btn btn-warning" type="button">Cerrar con observaciones</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="messageModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="messageTitle">
+      <div class="modal modal-small">
+        <div class="modal-head">
+          <h3 id="messageTitle">Información</h3>
+        </div>
+        <div id="messageBody" class="modal-body"></div>
+        <div class="modal-actions">
+          <button id="messageAcceptBtn" class="btn btn-primary" type="button">Aceptar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="notificationModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="notificationTitle">Notificaciones de esta práctica</h3>
+          <button class="modal-x" type="button" data-close-modal="notificationModal" aria-label="Cerrar">×</button>
+        </div>
+        <div id="notificationList" class="modal-body notification-list"></div>
+        <div class="modal-actions">
+          <button id="clearNotificationsBtn" class="btn btn-ghost" type="button">Limpiar tarjetas</button>
+          <button class="btn btn-primary" type="button" data-close-modal="notificationModal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <datalist id="articleOptions"></datalist>
+    <datalist id="lotOptions"></datalist>
+    <datalist id="materialOptions"></datalist>
+    <datalist id="compositionOptions"></datalist>
+    <datalist id="titleOptions"></datalist>
+    <datalist id="paraffinOptions"></datalist>
+    <datalist id="mechanicOptions"></datalist>
+    <datalist id="productionOptions"></datalist>
+  </div>
+
+  <script src="js/demo-data.js?v=1"></script>
+  <script src="js/demo-core.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
+</body>
+</html>

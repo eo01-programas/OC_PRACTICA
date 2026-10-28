@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruebas — Demo de Práctica</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #183247; background: #f3f6f9; }
+    body { max-width: 900px; margin: 0 auto; padding: 28px 18px; }
+    h1 { color: #0a2947; }
+    #summary { padding: 14px; border-radius: 10px; font-weight: 800; }
+    .ok { color: #126649; background: #e7f7f0; }
+    .fail { color: #90242e; background: #fdecee; }
+    li { margin: 8px 0; padding: 9px 12px; border-radius: 8px; background: #fff; }
+  </style>
+</head>
+<body>
+  <h1>Pruebas de la DEMO</h1>
+  <p>Estas pruebas evalúan únicamente datos ficticios y reglas en memoria.</p>
+  <div id="summary"></div>
+  <ol id="results"></ol>
+
+  <script src="../js/demo-data.js?v=1"></script>
+  <script src="../js/demo-core.js?v=2"></script>
+  <script>
+    (function () {
+      "use strict";
+      const rows = [];
+      function test(name, assertion) {
+        try {
+          if (!assertion()) throw new Error("La condición no se cumplió");
+          rows.push({ name, ok: true });
+        } catch (error) {
+          rows.push({ name, ok: false, error: error.message });
+        }
+      }
+
+      const D = window.DEMO_DATA;
+      const C = window.DemoCore;
+      const session = { supervisor: D.supervisors[0], shift: "Mañana" };
+      const empty = C.emptyOrder(session, D.initialOrders, new Date("2026-10-27T10:00:00"));
+      const complete = {
+        ...empty,
+        machineId: D.machines[0].id,
+        machine: D.machines[0].name,
+        process: D.machines[0].process,
+        machineNumber: D.machines[0].number,
+        ...D.articles[0],
+        mechanic: D.mechanics[0],
+        startTime: "10:00"
+      };
+      const signed = C.signOrder(complete, session.supervisor, new Date("2026-10-27T10:05:00"));
+      const stop = C.createStop(signed, new Date("2026-10-27T10:05:00"));
+      const finished = C.finishCleaning(stop, session.supervisor, new Date("2026-10-27T10:35:00"));
+      const closed = C.forceCloseOrder(signed, "Práctica de cierre forzado", new Date("2026-10-27T10:40:00"));
+
+      test("Hay cuatro supervisores ficticios", () => D.supervisors.length === 4);
+      test("Hay cuatro máquinas de procesos diferentes", () => D.machines.length === 4 && new Set(D.machines.map((m) => m.process)).size === 4);
+      test("Hay cuatro artículos y materiales diferentes", () => D.articles.length === 4 && new Set(D.articles.map((a) => a.material)).size === 4);
+      test("El escenario inicial contiene una orden cerrada", () => D.initialOrders.length === 1 && D.initialOrders[0].status === "CERRADA_CON_OBSERVACIONES");
+      test("El escenario inicial contiene una limpieza terminada", () => D.initialStops.length === 1 && D.initialStops[0].status === "LIMPIEZA_TERMINADA");
+      test("Una orden vacía no supera la validación", () => C.validateOrder(empty).length > 0);
+      test("Una orden completa supera la validación", () => C.validateOrder(complete).length === 0);
+      test("Firmar envía directo a validación RPM", () => signed.status === "PENDIENTE_VALIDACION_RPM" && !!signed.signature);
+      test("El cierre normal sigue teniendo dependencias pendientes", () => C.closeChecklist(signed).some((item) => !item.ok));
+      test("Forzar cierre conserva la aclaración", () => closed.status === "CERRADA_CON_OBSERVACIONES" && closed.forcedCloseNote === "Práctica de cierre forzado");
+      test("La orden firmada genera Control de Paros", () => stop.orderId === signed.id && stop.status === "EN_LIMPIEZA_Y_AJUSTE");
+      test("El alcance finaliza con limpieza terminada", () => finished.status === "LIMPIEZA_TERMINADA" && !!finished.finishedAt);
+
+      const failures = rows.filter((row) => !row.ok);
+      document.getElementById("results").innerHTML = rows.map((row) => `<li class="${row.ok ? "ok" : "fail"}">${row.ok ? "✓" : "✗"} ${row.name}${row.error ? ` — ${row.error}` : ""}</li>`).join("");
+      const summary = document.getElementById("summary");
+      summary.className = failures.length ? "fail" : "ok";
+      summary.textContent = failures.length ? `${failures.length} prueba(s) fallaron.` : `OK — ${rows.length} comprobaciones en verde.`;
+    })();
+  </script>
+</body>
+</html>

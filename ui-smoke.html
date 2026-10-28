@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de interfaz — Demo</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #183247; background: #f3f6f9; }
+    body { margin: 0; padding: 18px; }
+    h1 { margin: 0 0 12px; color: #0a2947; font-size: 1.45rem; }
+    #result { margin-bottom: 14px; padding: 13px; border-radius: 9px; font-weight: 800; }
+    .pending { color: #755000; background: #fff4d6; }
+    .ok { color: #126649; background: #e7f7f0; }
+    .fail { color: #90242e; background: #fdecee; }
+    iframe { width: 100%; height: 760px; border: 1px solid #c7d3dd; border-radius: 12px; background: #fff; }
+  </style>
+</head>
+<body>
+  <h1>Prueba automática de interfaz</h1>
+  <div id="result" class="pending">Ejecutando recorrido...</div>
+  <iframe id="demoFrame" src="../index.html" title="Aplicación DEMO bajo prueba"></iframe>
+
+  <script>
+    (function () {
+      "use strict";
+      const result = document.getElementById("result");
+      const frame = document.getElementById("demoFrame");
+      const check = (condition, message) => { if (!condition) throw new Error(message); };
+      const click = (doc, id) => doc.getElementById(id).click();
+      const set = (doc, id, value, eventName) => {
+        const field = doc.getElementById(id);
+        field.value = value;
+        if (eventName) field.dispatchEvent(new Event(eventName, { bubbles: true }));
+      };
+
+      frame.addEventListener("load", () => {
+        setTimeout(() => {
+          try {
+            const win = frame.contentWindow;
+            const doc = frame.contentDocument;
+            const data = win.DEMO_DATA;
+
+            set(doc, "loginSupervisor", data.supervisors[0]);
+            set(doc, "loginShift", "Mañana");
+            doc.getElementById("loginForm").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+            check(!doc.getElementById("mainView").classList.contains("hidden"), "No abrió la aplicación.");
+            check(win.DemoApp.snapshot().orders.length === 1, "No cargó la orden inicial.");
+
+            click(doc, "newOrderBtn");
+            set(doc, "machineSelect", data.machines[1].id, "change");
+            set(doc, "article", data.articles[1].article, "change");
+            set(doc, "mechanic", data.mechanics[1]);
+            set(doc, "endTime", "11:15");
+            click(doc, "saveSignBtn");
+
+            let snapshot = win.DemoApp.snapshot();
+            check(snapshot.orders.length === 2, "No creó la orden temporal.");
+            check(snapshot.orders[0].status === "PENDIENTE_VALIDACION_RPM", "No realizó firma y envío directo.");
+            check(snapshot.stops.length === 2, "No generó Control de Paros.");
+            click(doc, "messageAcceptBtn");
+
+            click(doc, "normalCloseBtn");
+            check(doc.getElementById("messageTitle").textContent.includes("cierre normal"), "El cierre normal no mostró el bloqueo.");
+            click(doc, "messageAcceptBtn");
+
+            click(doc, "forceCloseBtn");
+            set(doc, "forceCloseNote", "Cierre forzado de prueba automática");
+            click(doc, "confirmForceCloseBtn");
+            snapshot = win.DemoApp.snapshot();
+            check(snapshot.orders[0].status === "CERRADA_CON_OBSERVACIONES", "No completó el cierre forzado.");
+            click(doc, "messageAcceptBtn");
+
+            doc.querySelector('[data-section="stops"]').click();
+            doc.querySelector('[data-open-stop]').click();
+            check(!!doc.getElementById("finishCleaningBtn"), "No habilitó Limpieza terminada.");
+            click(doc, "finishCleaningBtn");
+            snapshot = win.DemoApp.snapshot();
+            check(snapshot.stops[0].status === "LIMPIEZA_TERMINADA", "No terminó la limpieza.");
+
+            result.className = "ok";
+            result.textContent = "OK — ingreso, creación, firma, cierre y limpieza verificados en la interfaz.";
+          } catch (error) {
+            result.className = "fail";
+            result.textContent = `ERROR — ${error.message}`;
+          }
+        }, 100);
+      });
+    })();
+  </script>
+</body>
+</html>
